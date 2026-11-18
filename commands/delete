@@ -24,7 +24,7 @@ delete::run() {
     rm_prox
     rm_ansible
     rm_dns
-    terraform_refresh
+    #terraform_refresh
 
     echo "deletion of vm done"
 }
