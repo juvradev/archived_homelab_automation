@@ -1,0 +1,17 @@
+.validate-base:
+  stage: validate
+  image:
+    name: $REG/docker.io/gitlab/gitlab-runner:alpine-v18.11.3
+    entrypoint: [""]
+  variables:
+    GIT_LFS_SKIP_SMUDGE: "1"   # LFS-Dateien (jars, Dump) nicht herunterladen, spart Zeit
+
+manifest-policy:
+  extends: .validate-base
+  script:
+    - sh ci/policy.sh
+
+repo-hygiene:
+  extends: .validate-base
+  script:
+    - sh ci/repo-checks.sh
