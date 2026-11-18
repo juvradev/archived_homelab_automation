@@ -29,3 +29,8 @@ done
 exit $fail
 
       if git show ":$f" | grep -qiE '(password|passwd|pwd)[[:space:]]*:[[:space:]]*["'"'"']?[^[:space:]"'"'"'{<$]'; then
+
+        case "$f" in
+    */templates/*) ;;
+    *) hits "$REGISTRIES" "$f" | grep -v 'artifactory\.inet\.julius\.de' && err "$f: image not pulled from Artifactory" ;;
+  esac
