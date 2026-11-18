@@ -1,0 +1,30 @@
+# Wann laeuft ueberhaupt eine Pipeline?
+workflow:
+  rules:
+    # manual started (only image push)
+    - if: $CI_PIPELINE_SOURCE == "web"
+
+    # every merge request
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+    # branch-push with a existing merge request --> no duplicate pipeline
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+
+    # after merge request to main
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+stages:
+  - validate
+  - publish
+
+default:
+  interruptible: true
+  timeout: 15m
+
+variables:
+  REG: "artifactory.inet.julius.de/it-infra_bce-public_cir"
+
+include:
+  - local: .gitlab/ci/validate.yaml
+  - local: .gitlab/ci/image-build.yml

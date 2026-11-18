@@ -1,7 +1,7 @@
 #!/bin/sh
-# Lokale Pruefungen vor jedem Commit.
-# Aktivieren (einmal pro Clone): git config core.hooksPath .githooks
-# Notfall-Umgehung:              git commit --no-verify
+# local checks before commits
+# activate once per clone: git config core.hooksPath .githooks
+# Emergency workaround:    git commit --no-verify
 
 fail=0
 err() { echo "pre-commit: $1"; fail=1; }

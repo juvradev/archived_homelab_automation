@@ -1,0 +1,61 @@
+variables:
+  ARTIFACTORY_HOST: "artifactory.inet.julius.de"
+  ARTIFACTORY_URL: "artifactory.inet.julius.de/apps_cbs_cir"
+
+publish-image:
+  stage: publish
+  image: artifactory.inet.julius.de/it-infra_bce-public_cir/quay.io/buildah/stable:v1.43.4
+  interruptible: false
+  resource_group: image-publish
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+  parallel:
+    matrix:
+      - TAR_FILE: "fdb-alerts-connector-3.0.0-beta5.tar"
+        SOURCE_IMAGE: "fioneer.jfrog.io/division-banking-fdb-banking-web-docker-local/fdb-alerts-connector-bbk:3.0.0-beta5-202609250918"
+        TARGET_IMAGE: "$ARTIFACTORY_URL/fdb/fdb-alerts-connector-bbk:3.0.0-beta5-202609250918"
+
+      - TAR_FILE: "fdb-banking-connector-3.0.0-beta5.tar"
+        SOURCE_IMAGE: "fioneer.jfrog.io/division-banking-fdb-banking-web-docker-local/fdb-banking-connector-bbk:3.0.0-beta5-202609250918"
+        TARGET_IMAGE: "$ARTIFACTORY_URL/fdb/fdb-banking-connector-bbk:3.0.0-beta5-202609250918"
+
+      - TAR_FILE: "fdb-cim-3.0.0-beta5.tar"
+        SOURCE_IMAGE: "fioneer.jfrog.io/division-banking-fdb-banking-web-docker-local/fdb-cim-bbk:3.0.0-beta5-202609280628"
+        TARGET_IMAGE: "$ARTIFACTORY_URL/fdb/fdb-cim-bbk:3.0.0-beta5-202609280628"
+
+      - TAR_FILE: "fdb-cim-ui-3.0.0-beta5.tar"
+        SOURCE_IMAGE: "fioneer.jfrog.io/division-banking-fdb-banking-web-docker-local/fdb-cim-ui-bbk:3.0.0-beta5-202609250458"
+        TARGET_IMAGE: "$ARTIFACTORY_URL/fdb/fdb-cim-ui-bbk:3.0.0-beta5-202609250458"
+
+      - TAR_FILE: "fdb-corp-ui-3.0.0-beta5.tar"
+        SOURCE_IMAGE: "fioneer.jfrog.io/division-banking-fdb-banking-web-docker-local/fdb-corp-ui-bbk:3.0.0-beta5-202609250458"
+        TARGET_IMAGE: "$ARTIFACTORY_URL/fdb/fdb-corp-ui-bbk:3.0.0-beta5-202609250458"
+
+      - TAR_FILE: "fdb-payments-connector-3.0.0-beta5.tar"
+        SOURCE_IMAGE: "fioneer.jfrog.io/division-banking-fdb-banking-web-docker-local/fdb-payments-connector-bbk:3.0.0-beta5-202609250918"
+        TARGET_IMAGE: "$ARTIFACTORY_URL/fdb/fdb-payments-connector-bbk:3.0.0-beta5-202609250918"
+
+      - TAR_FILE: "fdb-retail-ui-3.0.0-beta5.tar"
+        SOURCE_IMAGE: "fioneer.jfrog.io/division-banking-fdb-banking-web-docker-local/fdb-retail-ui-bbk:3.0.0-beta5-202609250458"
+        TARGET_IMAGE: "$ARTIFACTORY_URL/fdb/fdb-retail-ui-bbk:3.0.0-beta5-202609250458"
+
+      - TAR_FILE: "platform-web-3.0.0-beta5.tar"
+        SOURCE_IMAGE: "fioneer.jfrog.io/division-banking-fdb-banking-web-docker-local/fdb-platform-bbk:3.0.0-beta5-202609280505"
+        TARGET_IMAGE: "$ARTIFACTORY_URL/fdb/fdb-platform-bbk:3.0.0-beta5-202609280505"
+
+      - TAR_FILE: "postgresql-18.6.tar"
+        SOURCE_IMAGE: "ghcr.io/cloudnative-pg/postgresql:18.6"
+        TARGET_IMAGE: "$ARTIFACTORY_URL/postgres/postgresql:18.6"
+
+  script:
+    - curl --fail --silent --show-error -k -u "$ARTIFACTORY_USERNAME:$ARTIFACTORY_PASSWORD" -o "$TAR_FILE" "https://$ARTIFACTORY_HOST/artifactory/apps_cbs_cir/$TAR_FILE"
+    - ls -lh "$TAR_FILE"
+    - buildah pull "docker-archive:$TAR_FILE"
+    - buildah tag "$SOURCE_IMAGE" "$TARGET_IMAGE"
+    - echo "$ARTIFACTORY_PASSWORD" | buildah login --tls-verify=false -u "$ARTIFACTORY_USERNAME" --password-stdin "$ARTIFACTORY_HOST"
+    - buildah push --tls-verify=false --digestfile digest.txt "$TARGET_IMAGE"
+    - echo "Gepusht $TARGET_IMAGE@$(cat digest.txt)"
+
+  after_script:
+    - buildah logout --all || true
