@@ -1,24 +1,31 @@
 #!/bin/sh
-# Prueft Kubernetes-/Helm-Dateien unter apps/ und database/.
+# Checks Kubernetes / Helm files below apps/ and database/.
+# Comment lines and lines containing "policy:allow" are ignored.
 fail=0
-err() { echo "FEHLER: $1"; fail=1; }
+err() { echo "ERROR: $1"; fail=1; }
+hits() { grep -n $3 -E "$1" "$2" | grep -vE '^[0-9]+:[[:space:]]*#' | grep -v 'policy:allow'; }
+
+PW='(password|passwd|pwd)[[:space:]]*:[[:space:]]*["'"'"']?[^[:space:]"'"'"'{<$]'
+REGISTRIES='fioneer\.jfrog\.io|ghcr\.io|quay\.io|docker\.io|registry\.redhat\.io'
 
 for f in $(find apps database -type f \( -name '*.yaml' -o -name '*.yml' \)); do
 
   case "$f" in
     */templates/*) ;;
-    *) grep -qE '^kind:[[:space:]]*Secret[[:space:]]*$' "$f" && err "$f: kind: Secret gehoert nicht ins Git" ;;
+    *) grep -qE '^kind:[[:space:]]*Secret[[:space:]]*$' "$f" && err "$f: kind: Secret must not be stored in Git" ;;
   esac
 
-  grep -nE 'image:[[:space:]]*[^[:space:]]+:latest|tag:[[:space:]]*"?latest"?' "$f" && err "$f: latest-Tag"
+  hits 'image:[[:space:]]*[^[:space:]]+:latest|tag:[[:space:]]*"?latest"?' "$f" && err "$f: latest tag is not allowed"
 
-  grep -nE 'privileged:[[:space:]]*true|allowPrivilegeEscalation:[[:space:]]*true|hostNetwork:[[:space:]]*true|hostPID:[[:space:]]*true|hostPath:' "$f" && err "$f: unsichere Einstellung"
+  hits 'privileged:[[:space:]]*true|allowPrivilegeEscalation:[[:space:]]*true|hostNetwork:[[:space:]]*true|hostPID:[[:space:]]*true|hostPath:' "$f" && err "$f: insecure setting"
 
-  grep -niE '(password|passwd|pwd)[[:space:]]*:[[:space:]]*["'"'"']?[^[:space:]"'"'"'{]+' "$f" && err "$f: Passwort im Klartext?"
+  hits "$PW" "$f" -i && err "$f: possible plain-text password"
 
-  grep -nE 'fioneer\.jfrog\.io|ghcr\.io|quay\.io|docker\.io|registry\.redhat\.io' "$f" | grep -v 'artifactory\.inet\.julius\.de' && err "$f: Image nicht aus Artifactory"
+  hits "$REGISTRIES" "$f" | grep -v 'artifactory\.inet\.julius\.de' && err "$f: image not pulled from Artifactory"
 
 done
 
-[ "$fail" -eq 0 ] && echo "policy: alles ok"
+[ "$fail" -eq 0 ] && echo "policy: all checks passed"
 exit $fail
+
+      if git show ":$f" | grep -qiE '(password|passwd|pwd)[[:space:]]*:[[:space:]]*["'"'"']?[^[:space:]"'"'"'{<$]'; then
